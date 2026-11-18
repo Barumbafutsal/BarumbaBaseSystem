@@ -1,0 +1,2710 @@
+<!doctype html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BarumbaSystem — Financial & Operations Dashboard</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (Excel Export dengan Rumus Aktif) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                850: "#172033",
+                900: "#0f172a",
+                950: "#090d16",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .dark ::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+      }
+      .nav-active {
+        background: linear-gradient(
+          90deg,
+          rgba(16, 185, 129, 0.15) 0%,
+          rgba(16, 185, 129, 0) 100%
+        );
+        border-left: 3px solid #10b981;
+        color: #10b981;
+      }
+      .dark .nav-active {
+        color: #34d399;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased min-h-screen flex flex-col md:flex-row transition-colors duration-200"
+  >
+    <!-- LOADING OVERLAY -->
+    <div
+      id="globalLoader"
+      class="fixed inset-0 bg-white/80 dark:bg-slate-950/80 backdrop-blur-sm z-50 hidden flex-col items-center justify-center"
+    >
+      <div
+        class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"
+      ></div>
+      <p
+        id="loaderText"
+        class="text-sm font-medium text-emerald-600 dark:text-emerald-400"
+      >
+        Menyinkronkan database BarumbaSystem...
+      </p>
+    </div>
+
+    <!-- SIDEBAR (DESKTOP) & TOPBAR (MOBILE) -->
+    <aside
+      class="w-full md:w-64 bg-white dark:bg-slate-900 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col justify-between transition-colors duration-200"
+    >
+      <div>
+        <div
+          class="p-5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800"
+        >
+          <div class="flex items-center gap-3">
+            <div>
+              <h1
+                class="font-bold text-base tracking-wide text-slate-900 dark:text-white"
+              >
+                BarumbaSystem
+              </h1>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Financial Intelligence
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <!-- SWITCH MODE (DARK / LIGHT) -->
+            <button
+              onclick="toggleThemeMode()"
+              id="themeToggleBtn"
+              class="p-2 text-slate-500 dark:text-slate-400 hover:text-amber-500 dark:hover:text-amber-400 rounded-lg bg-slate-100 dark:bg-slate-800/70 transition"
+              title="Ganti Tema (Gelap / Terang)"
+            >
+              <i id="themeIcon" data-lucide="sun" class="w-4 h-4"></i>
+            </button>
+            <button
+              onclick="fetchAllData()"
+              class="p-2 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg bg-slate-100 dark:bg-slate-800/70 transition"
+              title="Refresh Data"
+            >
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <nav class="p-3 flex md:flex-col gap-1 overflow-x-auto">
+          <button
+            onclick="switchPage('dashboard')"
+            id="nav-dashboard"
+            class="nav-btn nav-active flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition"
+          >
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+            Ringkasan
+          </button>
+          <button
+            onclick="switchPage('transaksi')"
+            id="nav-transaksi"
+            class="nav-btn text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition"
+          >
+            <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Pemasukan &
+            Pengeluaran
+          </button>
+          <button
+            onclick="switchPage('laporan')"
+            id="nav-laporan"
+            class="nav-btn text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition"
+          >
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Laporan
+            Keuangan
+          </button>
+          <button
+            onclick="switchPage('setting')"
+            id="nav-setting"
+            class="nav-btn text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50 flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium whitespace-nowrap transition"
+          >
+            <i data-lucide="settings" class="w-4 h-4"></i> Pengaturan Sistem
+          </button>
+        </nav>
+      </div>
+
+      <div
+        class="hidden md:block p-4 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500"
+      >
+        <p
+          id="sidebarBusinessName"
+          class="font-semibold text-slate-700 dark:text-slate-300"
+        >
+          Barumba Sport & Cafe
+        </p>
+        <p class="mt-1">Database: Google Sheets Cloud</p>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+      <!-- =================================================================== -->
+      <!-- HALAMAN 1: DASHBOARD RINGKASAN                                      -->
+      <!-- =================================================================== -->
+      <section id="page-dashboard" class="page-section space-y-6">
+        <div
+          class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+          <div>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
+              Dashboard Ringkasan Keuangan
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              Akumulasi seluruh bulan pencatatan & monitoring kesehatan arus kas
+            </p>
+          </div>
+
+          <!-- Status Kesehatan Arus Kas -->
+          <div
+            id="cashflowStatusBadge"
+            class="px-4 py-2.5 rounded-xl border flex items-center gap-3 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+          >
+            <i data-lucide="activity" class="w-5 h-5"></i>
+            <div>
+              <p
+                class="text-xs uppercase tracking-wider font-semibold opacity-80"
+              >
+                Aktivitas Arus Kas
+              </p>
+              <p id="cashflowStatusText" class="text-sm font-bold">
+                Memuat status...
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- KARTU SUMMARY UTAMA -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <!-- Kartu Total Pemasukan (Klik untuk rincian) -->
+          <div
+            onclick="toggleIncomeModal()"
+            class="cursor-pointer group bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 rounded-2xl p-6 transition shadow-sm dark:shadow-lg"
+          >
+            <div class="flex items-center justify-between">
+              <span
+                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                >Total Pemasukan (Semua Bulan)</span
+              >
+              <span
+                class="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition"
+              >
+                <i data-lucide="trending-up" class="w-5 h-5"></i>
+              </span>
+            </div>
+            <p
+              id="dashTotalPemasukan"
+              class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mt-3"
+            >
+              Rp 0
+            </p>
+            <p
+              class="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1"
+            >
+              <i data-lucide="mouse-pointer-click" class="w-3.5 h-3.5"></i> Klik
+              untuk rincian Penyewaan, Penjualan & Manual
+            </p>
+          </div>
+
+          <!-- Kartu Total Pengeluaran -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-lg"
+          >
+            <div class="flex items-center justify-between">
+              <span
+                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                >Total Pengeluaran (Semua Bulan)</span
+              >
+              <span
+                class="p-2 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400"
+              >
+                <i data-lucide="trending-down" class="w-5 h-5"></i>
+              </span>
+            </div>
+            <p
+              id="dashTotalPengeluaran"
+              class="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mt-3"
+            >
+              Rp 0
+            </p>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">
+              Akumulasi seluruh pengeluaran tercatat
+            </p>
+          </div>
+
+          <!-- Kartu Saldo Kas Bersih -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-lg"
+          >
+            <div class="flex items-center justify-between">
+              <span
+                class="text-sm font-medium text-slate-500 dark:text-slate-400"
+                >Saldo Kas Saat Ini</span
+              >
+              <span
+                class="p-2 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400"
+              >
+                <i data-lucide="wallet" class="w-5 h-5"></i>
+              </span>
+            </div>
+            <p
+              id="dashSaldoKas"
+              class="text-2xl md:text-3xl font-bold text-sky-600 dark:text-sky-400 mt-3"
+            >
+              Rp 0
+            </p>
+            <p
+              id="dashSaldoAwalInfo"
+              class="text-xs text-slate-500 dark:text-slate-400 mt-2"
+            >
+              Termasuk Saldo Awal Kas: Rp 0
+            </p>
+          </div>
+        </div>
+
+        <!-- KARTU TARGET BULANAN & PROGRESS BAR -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm"
+        >
+          <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4"
+          >
+            <div>
+              <h3
+                class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2"
+              >
+                <i data-lucide="target" class="w-4 h-4 text-amber-500"></i>
+                Target Pemasukan & Batas Pengeluaran Bulanan
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Tetapkan target bulanan untuk memantau rasio kesehatan arus kas
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                type="month"
+                id="targetMonthPicker"
+                onchange="updateTargetProgressUI()"
+                class="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+              />
+              <input
+                type="text"
+                inputmode="numeric"
+                id="inputTargetPemasukan"
+                placeholder="Target Masuk (Rp)"
+                class="nominal-input bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white w-44"
+              />
+              <input
+                type="text"
+                inputmode="numeric"
+                id="inputBatasPengeluaran"
+                placeholder="Batas Keluar (Rp)"
+                class="nominal-input bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white w-44"
+              />
+              <button
+                onclick="saveMonthlyTarget()"
+                class="bg-amber-500 hover:bg-amber-600 text-white dark:text-slate-950 font-bold px-4 py-1.5 rounded-lg text-sm transition"
+              >
+                Simpan Target
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-slate-500 dark:text-slate-400"
+                  >Realisasi Pemasukan Bulan Terpilih</span
+                >
+                <span
+                  id="targetIncomePercentText"
+                  class="font-bold text-emerald-600 dark:text-emerald-400"
+                  >0% (Rp 0 / Rp 0)</span
+                >
+              </div>
+              <div
+                class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-3 overflow-hidden"
+              >
+                <div
+                  id="targetIncomeBar"
+                  class="bg-emerald-500 h-3 rounded-full transition-all duration-500"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1.5">
+                <span class="text-slate-500 dark:text-slate-400"
+                  >Realisasi Pengeluaran vs Batas</span
+                >
+                <span
+                  id="targetExpensePercentText"
+                  class="font-bold text-rose-600 dark:text-rose-400"
+                  >0% (Rp 0 / Rp 0)</span
+                >
+              </div>
+              <div
+                class="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-3 overflow-hidden"
+              >
+                <div
+                  id="targetExpenseBar"
+                  class="bg-rose-500 h-3 rounded-full transition-all duration-500"
+                  style="width: 0%"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DUA GRAFIK BATANG TERPISAH (PEMASUKAN & PENGELUARAN) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm"
+          >
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">
+              Grafik Pemasukan Bulanan
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Dari bulan pertama pencatatan hingga saat ini
+            </p>
+            <div class="h-64">
+              <canvas id="chartPemasukan"></canvas>
+            </div>
+          </div>
+
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm"
+          >
+            <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">
+              Grafik Pengeluaran Bulanan
+            </h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Dari bulan pertama pencatatan hingga saat ini
+            </p>
+            <div class="h-64">
+              <canvas id="chartPengeluaran"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- HALAMAN 2: INPUT PEMASUKAN & PENGELUARAN                            -->
+      <!-- =================================================================== -->
+      <section id="page-transaksi" class="page-section hidden space-y-6">
+        <div
+          class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+          <div>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
+              Input Pemasukan & Pengeluaran
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              Pencatatan transaksi harian, saldo awal kas, serta kelola kategori
+            </p>
+          </div>
+
+          <!-- Input Saldo Awal Kas -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-center gap-2 shadow-sm"
+          >
+            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium"
+              >Saldo Awal Kas:</span
+            >
+            <input
+              type="text"
+              inputmode="numeric"
+              id="inputSaldoAwal"
+              class="nominal-input bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white w-40"
+              placeholder="0"
+            />
+            <button
+              onclick="updateSaldoAwal()"
+              class="bg-sky-500 hover:bg-sky-600 text-white dark:text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs transition"
+            >
+              Simpan
+            </button>
+          </div>
+        </div>
+
+        <!-- FORM INPUT PEMASUKAN & PENGELUARAN -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Form Pemasukan -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm"
+          >
+            <div class="flex items-center justify-between mb-4">
+              <h3
+                class="text-lg font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
+              >
+                <i data-lucide="plus-circle" class="w-5 h-5"></i> Input
+                Pemasukan
+              </h3>
+              <button
+                onclick="openKategoriModal('Pemasukan')"
+                class="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 transition"
+              >
+                + Kategori Baru
+              </button>
+            </div>
+            <form
+              onsubmit="submitTransaksi(event, 'Pemasukan')"
+              class="space-y-4"
+            >
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Tanggal Transaksi</label
+                >
+                <input
+                  type="date"
+                  id="inTanggal"
+                  required
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Kategori Pemasukan</label
+                >
+                <select
+                  id="inKategori"
+                  required
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+                ></select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Nominal (Rp)</label
+                >
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  id="inNominal"
+                  required
+                  placeholder="Contoh: 250,000"
+                  class="nominal-input w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white font-semibold"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Keterangan (Opsional)</label
+                >
+                <input
+                  type="text"
+                  id="inKeterangan"
+                  placeholder="Catatan singkat transaksi..."
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold py-3 rounded-xl transition"
+              >
+                Simpan Pemasukan
+              </button>
+            </form>
+          </div>
+
+          <!-- Form Pengeluaran -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm"
+          >
+            <div class="flex items-center justify-between mb-4">
+              <h3
+                class="text-lg font-bold text-rose-600 dark:text-rose-400 flex items-center gap-2"
+              >
+                <i data-lucide="minus-circle" class="w-5 h-5"></i> Input
+                Pengeluaran
+              </h3>
+              <button
+                onclick="openKategoriModal('Pengeluaran')"
+                class="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 transition"
+              >
+                + Kategori Baru
+              </button>
+            </div>
+            <form
+              onsubmit="submitTransaksi(event, 'Pengeluaran')"
+              class="space-y-4"
+            >
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Tanggal Transaksi</label
+                >
+                <input
+                  type="date"
+                  id="outTanggal"
+                  required
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Kategori Pengeluaran</label
+                >
+                <select
+                  id="outKategori"
+                  required
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+                ></select>
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Nominal (Rp)</label
+                >
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  id="outNominal"
+                  required
+                  placeholder="Contoh: 120,000"
+                  class="nominal-input w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white font-semibold"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Keterangan (Opsional)</label
+                >
+                <input
+                  type="text"
+                  id="outKeterangan"
+                  placeholder="Catatan singkat pengeluaran..."
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full bg-rose-500 hover:bg-rose-600 text-white dark:text-slate-950 font-bold py-3 rounded-xl transition"
+              >
+                Simpan Pengeluaran
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- 10 HISTORI TRANSAKSI GABUNGAN TERBARU -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                10 Histori Pemasukan & Pengeluaran Terbaru
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Urutan kronologis gabungan (Setiap perubahan tercatat dalam
+                Audit Log)
+              </p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr
+                  class="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 uppercase"
+                >
+                  <th class="py-3 px-3">Tanggal</th>
+                  <th class="py-3 px-3">Tipe</th>
+                  <th class="py-3 px-3">Kategori</th>
+                  <th class="py-3 px-3">Keterangan</th>
+                  <th class="py-3 px-3 text-right">Nominal</th>
+                  <th class="py-3 px-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody
+                id="recentHistoryTable"
+                class="divide-y divide-slate-200/70 dark:divide-slate-800/60 text-sm"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- HALAMAN 3: LAPORAN KEUANGAN (ARUS KAS & LABA RUGI)                  -->
+      <!-- =================================================================== -->
+      <section id="page-laporan" class="page-section hidden space-y-6">
+        <div
+          class="flex flex-col md:flex-row md:items-center justify-between gap-4"
+        >
+          <div>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
+              Laporan Keuangan
+            </h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400">
+              Standar akuntansi UMKM sederhana — Ekspor langsung ke format Excel
+              (.xlsx)
+            </p>
+          </div>
+        </div>
+
+        <!-- FILTER PERIODE & TOMBOL UNDUH EXCEL -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Jenis Laporan</label
+              >
+              <select
+                id="repJenis"
+                onchange="renderReportPreview()"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white"
+              >
+                <option value="Arus Kas">Laporan Arus Kas</option>
+                <option value="Laba Rugi">Laporan Laba Rugi</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Mode Periode</label
+              >
+              <select
+                id="repModePeriode"
+                onchange="toggleReportPeriodInputs()"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white"
+              >
+                <option value="single">1 Bulan Saja</option>
+                <option value="range">Rentang Bulan (Range)</option>
+              </select>
+            </div>
+
+            <div id="repSingleWrapper">
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Pilih Bulan</label
+              >
+              <input
+                type="month"
+                id="repSingleMonth"
+                onchange="renderReportPreview()"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </div>
+
+            <div id="repRangeWrapper" class="hidden grid grid-cols-2 gap-2">
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Dari Bulan</label
+                >
+                <input
+                  type="month"
+                  id="repStartMonth"
+                  onchange="renderReportPreview()"
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-2.5 text-xs text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+              <div>
+                <label
+                  class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                  >Sampai Bulan</label
+                >
+                <input
+                  type="month"
+                  id="repEndMonth"
+                  onchange="renderReportPreview()"
+                  class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-2 py-2.5 text-xs text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <button
+                onclick="downloadExcelReport()"
+                class="w-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition"
+              >
+                <i data-lucide="download" class="w-4 h-4"></i> Unduh Excel
+                (.xlsx)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PREVIEW LAPORAN -->
+        <div
+          id="reportPreviewContainer"
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 md:p-8 shadow-sm"
+        ></div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- HALAMAN 4: PENGATURAN SISTEM (SETTING)                              -->
+      <!-- =================================================================== -->
+      <section id="page-setting" class="page-section hidden space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white">
+            Pengaturan Sistem BarumbaSystem
+          </h2>
+          <p class="text-sm text-slate-500 dark:text-slate-400">
+            Konfigurasi identitas usaha, integrasi Google Drive, jadwal custom
+            reset/rekap, dan sumber database
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Konfigurasi Umum & Google Drive -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm"
+          >
+            <h3
+              class="text-base font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3"
+            >
+              Identitas Usaha & Folder Google Drive
+            </h3>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Nama Usaha (Header Laporan)</label
+              >
+              <input
+                type="text"
+                id="setNamaUsaha"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Alamat Usaha</label
+              >
+              <input
+                type="text"
+                id="setAlamatUsaha"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >ID Folder GDrive Backup Spreadsheet Awal</label
+              >
+              <input
+                type="text"
+                id="setFolderBackup"
+                placeholder="Contoh: 1A2B3C4D5E6F..."
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >ID Spreadsheet GsBoking (File Booking)</label
+              >
+              <input
+                type="text"
+                id="setBookingSpId"
+                placeholder="Contoh: 1B2C3D4E5F6G..."
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >ID Folder GDrive Laporan Otomatis 4 Bulanan</label
+              >
+              <input
+                type="text"
+                id="setFolderLaporan"
+                placeholder="Contoh: 9Z8Y7X6W5V4U..."
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Bulan Pertama Pencatatan (Acuan Siklus 4 Bulanan)</label
+              >
+              <input
+                type="month"
+                id="setBulanMulai"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+              />
+            </div>
+          </div>
+
+          <!-- Konfigurasi Otomatisasi, Jadwal Custom & Trigger Test -->
+          <div
+            class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col justify-between space-y-4 shadow-sm"
+          >
+            <div class="space-y-4">
+              <h3
+                class="text-base font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-800 pb-3"
+              >
+                Otomatisasi & Jadwal Custom Reset / Rekap
+              </h3>
+
+              <!-- Pengaturan Auto-Rekap & Reset dengan Opsi Custom -->
+              <div
+                class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p
+                      class="text-sm font-semibold text-slate-900 dark:text-white"
+                    >
+                      Auto-Rekap & Reset Data
+                    </p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                      Tarik data eksternal, backup GDrive, dan kosongkan sheet
+                      asal
+                    </p>
+                  </div>
+                  <select
+                    id="setAutoRekap"
+                    class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold"
+                  >
+                    <option value="aktif">Aktif</option>
+                    <option value="nonaktif">Nonaktif</option>
+                  </select>
+                </div>
+
+                <!-- Pilihan Jadwal: Akhir Bulan vs Custom -->
+                <div
+                  class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5"
+                >
+                  <label
+                    class="block text-xs font-medium text-slate-600 dark:text-slate-300"
+                  >
+                    Jadwal Eksekusi Reset & Rekap:
+                  </label>
+                  <select
+                    id="setModeJadwalRekap"
+                    onchange="toggleCustomScheduleUI()"
+                    class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white"
+                  >
+                    <option value="akhir_bulan">
+                      Otomatis Setiap Tanggal Terakhir Bulan
+                    </option>
+                    <option value="tanggal_bulanan">
+                      Custom — Pilih Tanggal Rutin Setiap Bulan (1–28)
+                    </option>
+                    <option value="tanggal_spesifik">
+                      Custom — Pilih Tanggal Kalender Spesifik
+                    </option>
+                  </select>
+
+                  <!-- Input Custom Tanggal Rutin Bulanan -->
+                  <div id="customDayWrapper" class="hidden">
+                    <label
+                      class="block text-[11px] text-slate-500 dark:text-slate-400 mb-1"
+                    >
+                      Jalankan setiap tanggal berapa setiap bulannya?
+                    </label>
+                    <input
+                      type="number"
+                      id="setCustomDay"
+                      min="1"
+                      max="28"
+                      placeholder="Contoh: 25"
+                      class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <!-- Input Custom Tanggal Kalender Spesifik -->
+                  <div id="customDateWrapper" class="hidden">
+                    <label
+                      class="block text-[11px] text-slate-500 dark:text-slate-400 mb-1"
+                    >
+                      Pilih tanggal eksekusi yang diinginkan:
+                    </label>
+                    <input
+                      type="date"
+                      id="setCustomDate"
+                      class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Auto-Laporan 4 Bulanan -->
+              <div
+                class="flex items-center justify-between bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800"
+              >
+                <div>
+                  <p
+                    class="text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Auto-Laporan 4 Bulanan ke GDrive
+                  </p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Otomatis unduh & simpan Excel laporan setiap 4 bulan sejak
+                    bulan pertama
+                  </p>
+                </div>
+                <select
+                  id="setAuto4Bulan"
+                  class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold"
+                >
+                  <option value="aktif">Aktif</option>
+                  <option value="nonaktif">Nonaktif</option>
+                </select>
+              </div>
+
+              <!-- PENGATURAN STATUS BOOKING -->
+              <div
+                class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3"
+              >
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p
+                      class="text-sm font-semibold text-slate-900 dark:text-white"
+                    >
+                      Status Booking Online
+                    </p>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                      Atur ketersediaan sistem booking (OPEN / CLOSED)
+                    </p>
+                  </div>
+                  <select
+                    id="setStatusBooking"
+                    class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold"
+                  >
+                    <option value="OPEN">OPEN (Buka)</option>
+                    <option value="CLOSED">CLOSED (Tutup)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- PANEL HAPUS / RESET REKAP BERDASARKAN BULAN -->
+              <div
+                class="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3"
+              >
+                <div>
+                  <p
+                    class="text-sm font-semibold text-slate-900 dark:text-white"
+                  >
+                    Hapus Master Data / Rekap Berdasarkan Bulan
+                  </p>
+                  <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Menghapus transaksi pada sheet Transaksi_Keuangan
+                    berdasarkan periode YYYY-MM
+                  </p>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                  <input
+                    type="month"
+                    id="inputResetBulan"
+                    class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
+                  />
+                  <button
+                    onclick="triggerHapusDataRekap()"
+                    class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2 rounded-lg text-xs transition"
+                  >
+                    Hapus Data Periode Ini
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tombol Trigger Test Manual -->
+              <div class="pt-2 space-y-2">
+                <p
+                  class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider"
+                >
+                  Panel Uji Coba Manual (Trigger Test)
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    onclick="triggerManualRekap()"
+                    class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition"
+                  >
+                    <i
+                      data-lucide="play"
+                      class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"
+                    ></i>
+                    Tes Rekap & Reset Sekarang
+                  </button>
+                  <button
+                    onclick="triggerManual4Month()"
+                    class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-white text-xs font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition"
+                  >
+                    <i
+                      data-lucide="folder-up"
+                      class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400"
+                    ></i>
+                    Tes Simpan Laporan 4 Bulanan
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onclick="saveSystemSettings()"
+              class="w-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold py-3 rounded-xl transition"
+            >
+              Simpan Semua Pengaturan
+            </button>
+          </div>
+        </div>
+
+        <!-- MANAJEMEN SUMBER SPREADSHEET EKSTERNAL (DINAMIS UNTUK MASA DEPAN) -->
+        <div
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm"
+        >
+          <div
+            class="flex flex-col md:flex-row md:items-center justify-between gap-2"
+          >
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                Sumber Database Spreadsheet Eksternal
+              </h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Kelola spreadsheet penyewaan, kantin, atau unit usaha baru di
+                masa depan
+              </p>
+            </div>
+            <button
+              onclick="openSourceModal()"
+              class="bg-sky-500 hover:bg-sky-600 text-white dark:text-slate-950 font-bold px-4 py-2 rounded-xl text-xs"
+            >
+              + Tambah Sumber Spreadsheet
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-sm">
+              <thead>
+                <tr
+                  class="border-b border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 uppercase"
+                >
+                  <th class="py-2.5 px-3">Nama Unit</th>
+                  <th class="py-2.5 px-3">Spreadsheet ID</th>
+                  <th class="py-2.5 px-3">Nama Sheet</th>
+                  <th class="py-2.5 px-3">Kolom Nominal (Index)</th>
+                  <th class="py-2.5 px-3">Kategori Target</th>
+                  <th class="py-2.5 px-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody
+                id="externalSourcesTable"
+                class="divide-y divide-slate-200/70 dark:divide-slate-800/60"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MODALS                                                                -->
+    <!-- ===================================================================== -->
+
+    <!-- Modal Rincian Pemasukan (Klik dari Dashboard) -->
+    <div
+      id="modalIncomeDetail"
+      class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3"
+        >
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+            Rincian Sumber Pemasukan
+          </h3>
+          <button
+            onclick="toggleIncomeModal()"
+            class="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+          >
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <div id="incomeBreakdownList" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- Modal Tambah Kategori Baru -->
+    <div
+      id="modalAddKategori"
+      class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3"
+        >
+          <h3
+            id="modalKatTitle"
+            class="text-lg font-bold text-slate-900 dark:text-white"
+          >
+            Tambah Kategori
+          </h3>
+          <button
+            onclick="closeModal('modalAddKategori')"
+            class="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+          >
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="submitNewKategori(event)" class="space-y-4">
+          <input type="hidden" id="newKatTipe" />
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Nama Kategori</label
+            >
+            <input
+              type="text"
+              id="newKatNama"
+              required
+              placeholder="Contoh: Bonus Turnamen / Beli Bola"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Klasifikasi Akuntansi (Untuk Laba Rugi vs Arus Kas)</label
+            >
+            <select
+              id="newKatJenis"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+            >
+              <option value="Operasional">
+                Operasional (Masuk Laba Rugi & Arus Kas)
+              </option>
+              <option value="Non-Operasional">
+                Non-Operasional / Aset / Modal (Hanya Arus Kas)
+              </option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-emerald-500 hover:bg-emerald-600 text-white dark:text-slate-950 font-bold py-2.5 rounded-xl text-sm"
+          >
+            Simpan Kategori
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Edit Transaksi -->
+    <div
+      id="modalEditTrx"
+      class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3"
+        >
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+            Edit Transaksi
+          </h3>
+          <button
+            onclick="closeModal('modalEditTrx')"
+            class="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+          >
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="submitEditTransaksi(event)" class="space-y-4">
+          <input type="hidden" id="editTrxId" />
+          <input type="hidden" id="editTrxTipe" />
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Tanggal</label
+            >
+            <input
+              type="date"
+              id="editTrxTanggal"
+              required
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Kategori</label
+            >
+            <select
+              id="editTrxKategori"
+              required
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+            ></select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Nominal (Rp)</label
+            >
+            <input
+              type="text"
+              inputmode="numeric"
+              id="editTrxNominal"
+              required
+              class="nominal-input w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white font-semibold"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Keterangan</label
+            >
+            <input
+              type="text"
+              id="editTrxKeterangan"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white"
+            />
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-amber-500 hover:bg-amber-600 text-white dark:text-slate-950 font-bold py-2.5 rounded-xl text-sm"
+          >
+            Simpan Perubahan
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Tambah Sumber Eksternal -->
+    <div
+      id="modalAddSource"
+      class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl"
+      >
+        <div
+          class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3"
+        >
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+            Tambah Sumber Spreadsheet
+          </h3>
+          <button
+            onclick="closeModal('modalAddSource')"
+            class="text-slate-400 hover:text-slate-700 dark:hover:text-white"
+          >
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+        <form onsubmit="submitNewSource(event)" class="space-y-3">
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Nama Unit Usaha</label
+            >
+            <input
+              type="text"
+              id="srcNama"
+              required
+              placeholder="Contoh: Cuci Steam Motor"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white"
+            />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Spreadsheet ID</label
+            >
+            <input
+              type="text"
+              id="srcSpId"
+              required
+              placeholder="ID dari URL Google Sheets"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Nama Sheet</label
+              >
+              <input
+                type="text"
+                id="srcSheet"
+                required
+                placeholder="Transaksi"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label
+                class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+                >Index Kolom Nominal (0=A)</label
+              >
+              <input
+                type="number"
+                id="srcColNom"
+                required
+                value="2"
+                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1"
+              >Kategori Target di Dashboard</label
+            >
+            <select
+              id="srcKatTarget"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white"
+            ></select>
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-sky-500 hover:bg-sky-600 text-white dark:text-slate-950 font-bold py-2.5 rounded-xl text-sm"
+          >
+            Simpan Sumber Eksternal
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Konfirmasi Kustom -->
+    <div
+      id="modalCustomConfirm"
+      class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-xl"
+      >
+        <div
+          class="w-12 h-12 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto"
+        >
+          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3
+            id="confirmTitle"
+            class="text-lg font-bold text-slate-900 dark:text-white"
+          >
+            Konfirmasi Hapus
+          </h3>
+          <p
+            id="confirmMessage"
+            class="text-sm text-slate-500 dark:text-slate-400 mt-1"
+          >
+            Pesan konfirmasi di sini...
+          </p>
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button
+            id="confirmBtnBatal"
+            class="w-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-white font-bold py-2.5 rounded-xl text-sm transition"
+          >
+            Batal
+          </button>
+          <button
+            id="confirmBtnYa"
+            class="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-2.5 rounded-xl text-sm transition"
+          >
+            Ya, Hapus
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Notifikasi Pop-Up Kustom (Diposisikan di Root Body agar tidak tersembunyi) -->
+    <div
+      id="modalCustomAlert"
+      class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-xl"
+      >
+        <div
+          class="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto"
+        >
+          <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h3
+            id="alertTitle"
+            class="text-lg font-bold text-slate-900 dark:text-white"
+          >
+            Berhasil!
+          </h3>
+          <p
+            id="alertMessage"
+            class="text-sm text-slate-500 dark:text-slate-400 mt-1"
+          >
+            Pesan notifikasi di sini...
+          </p>
+        </div>
+        <button
+          onclick="closeCustomAlert()"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-sm transition"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- JAVASCRIPT LOGIC                                                      -->
+    <!-- ===================================================================== -->
+    <script>
+      const API_URL =
+        "https://script.google.com/macros/s/AKfycby3W9zKF5obxjvdqEdTN0qJW_-JePjQcgRvmuY25wKA5NSDBcIE8cOIGttK6NZHJo7ztA/exec";
+
+      let STATE = {
+        transaksi: [],
+        kategori: [],
+        target: {},
+        settings: {},
+        sumberEksternal: [],
+      };
+
+      let chartInInstance = null;
+      let chartOutInstance = null;
+
+      const NAMA_BULAN = [
+        "Januari",
+        "Februari",
+        "Maret",
+        "April",
+        "Mei",
+        "Juni",
+        "Juli",
+        "Agustus",
+        "September",
+        "Oktober",
+        "November",
+        "Desember",
+      ];
+
+      /* -----------------------------------------------------------------------
+       * HELPER FORMAT RIBUAN DENGAN KOMA (1,000,000) & PARSER ANGKA
+       * ----------------------------------------------------------------------- */
+      function formatNumberWithCommas(val) {
+        if (val === "" || val === null || val === undefined) return "";
+        const numericStr = String(val).replace(/[^0-9]/g, "");
+        if (!numericStr) return "";
+        return Number(numericStr).toLocaleString("en-US"); // Menggunakan pemisah koma (1,000,000)
+      }
+
+      function parseFormattedNumber(val) {
+        if (!val) return 0;
+        const cleaned = String(val).replace(/[^0-9]/g, "");
+        return Number(cleaned) || 0;
+      }
+
+      function initNominalFormatters() {
+        document.querySelectorAll(".nominal-input").forEach((input) => {
+          input.addEventListener("input", (e) => {
+            const rawDigits = e.target.value.replace(/[^0-9]/g, "");
+            e.target.value = rawDigits
+              ? Number(rawDigits).toLocaleString("en-US")
+              : "";
+          });
+        });
+      }
+
+      /* -----------------------------------------------------------------------
+       * SWITCH MODE (DARK / LIGHT THEME)
+       * ----------------------------------------------------------------------- */
+      function initThemeMode() {
+        const savedTheme = localStorage.getItem("barumba_theme") || "dark";
+        const htmlEl = document.documentElement;
+        if (savedTheme === "dark") {
+          htmlEl.classList.add("dark");
+        } else {
+          htmlEl.classList.remove("dark");
+        }
+        updateThemeIcon(savedTheme);
+      }
+
+      function toggleThemeMode() {
+        const htmlEl = document.documentElement;
+        const isDark = htmlEl.classList.toggle("dark");
+        const activeTheme = isDark ? "dark" : "light";
+        localStorage.setItem("barumba_theme", activeTheme);
+        updateThemeIcon(activeTheme);
+        renderDashboard(); // Render ulang grafik agar warna grid & label menyesuaikan tema
+      }
+
+      function updateThemeIcon(theme) {
+        const iconEl = document.getElementById("themeIcon");
+        if (!iconEl) return;
+        iconEl.setAttribute("data-lucide", theme === "dark" ? "sun" : "moon");
+        lucide.createIcons();
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        initThemeMode();
+        initNominalFormatters();
+        lucide.createIcons();
+
+        const today = new Date().toISOString().split("T")[0];
+        const currentYM = today.substring(0, 7);
+
+        document.getElementById("inTanggal").value = today;
+        document.getElementById("outTanggal").value = today;
+        document.getElementById("targetMonthPicker").value = currentYM;
+        document.getElementById("repSingleMonth").value = currentYM;
+        document.getElementById("repStartMonth").value = currentYM;
+        document.getElementById("repEndMonth").value = currentYM;
+
+        fetchAllData();
+      });
+
+      function showLoader(msg = "Memproses data...") {
+        document.getElementById("loaderText").innerText = msg;
+        document.getElementById("globalLoader").classList.remove("hidden");
+        document.getElementById("globalLoader").classList.add("flex");
+      }
+
+      function hideLoader() {
+        document.getElementById("globalLoader").classList.add("hidden");
+        document.getElementById("globalLoader").classList.remove("flex");
+      }
+
+      function formatRupiah(num) {
+        return "Rp " + Number(num || 0).toLocaleString("en-US");
+      }
+
+      function normalizeYM(raw) {
+        if (!raw) return "";
+        const str = String(raw).trim();
+        // Jika sudah berformat YYYY-MM (contoh: 2026-11)
+        if (/^\d{4}-\d{2}$/.test(str)) return str;
+        // Jika terkonversi menjadi Date string oleh Google Sheets (contoh: Sun Nov 01 2026...)
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, "0");
+          return `${year}-${month}`;
+        }
+        return str.substring(0, 7);
+      }
+
+      function formatBulanLabel(ym) {
+        const cleanYM = normalizeYM(ym);
+        if (!cleanYM || !cleanYM.includes("-")) return cleanYM || "-";
+        const [y, m] = cleanYM.split("-");
+        const monthIdx = parseInt(m, 10) - 1;
+        return `${NAMA_BULAN[monthIdx] || m} ${y}`;
+      }
+      async function apiCall(payload, loaderMsg) {
+        showLoader(loaderMsg);
+        try {
+          const res = await fetch(API_URL, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          const json = await res.json();
+          hideLoader();
+          if (json.status === "error") throw new Error(json.message);
+          return json;
+        } catch (err) {
+          hideLoader();
+          alert("Terjadi kesalahan: " + err.message);
+          throw err;
+        }
+      }
+
+      async function fetchAllData() {
+        showLoader("Mengambil data terbaru...");
+        try {
+          const res = await fetch(API_URL);
+          const json = await res.json();
+          if (json.status === "success") {
+            // Normalisasi bulanTahun pada setiap transaksi
+            json.transaksi = (json.transaksi || []).map((t) => ({
+              ...t,
+              bulanTahun: normalizeYM(t.bulanTahun || t.tanggal),
+            }));
+
+            // Normalisasi key bulan pada objek target
+            const normalizedTarget = {};
+            Object.entries(json.target || {}).forEach(([k, val]) => {
+              normalizedTarget[normalizeYM(k)] = val;
+            });
+            json.target = normalizedTarget;
+
+            STATE = json;
+            renderAllUI();
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          hideLoader();
+        }
+      }
+
+      function switchPage(pageId) {
+        document
+          .querySelectorAll(".page-section")
+          .forEach((el) => el.classList.add("hidden"));
+        document.getElementById("page-" + pageId).classList.remove("hidden");
+
+        document.querySelectorAll(".nav-btn").forEach((btn) => {
+          btn.classList.remove("nav-active");
+          btn.classList.add("text-slate-600", "dark:text-slate-400");
+        });
+        const activeBtn = document.getElementById("nav-" + pageId);
+        activeBtn.classList.add("nav-active");
+        activeBtn.classList.remove("text-slate-600", "dark:text-slate-400");
+
+        if (pageId === "laporan") renderReportPreview();
+      }
+
+      function renderAllUI() {
+        populateCategorySelects();
+        renderDashboard();
+        renderRecentHistory();
+        renderSettingsUI();
+        renderReportPreview();
+        lucide.createIcons();
+      }
+
+      /* -----------------------------------------------------------------------
+       * 1. RENDER DASHBOARD & GRAFIK BATANG
+       * ----------------------------------------------------------------------- */
+      function renderDashboard() {
+        const saldoAwal = Number(STATE.settings.saldo_awal_kas) || 0;
+        let totalIn = 0;
+        let totalOut = 0;
+
+        let rincianSewa = 0;
+        let rincianKantin = 0;
+        let rincianManual = 0;
+
+        const monthlyIn = {};
+        const monthlyOut = {};
+
+        STATE.transaksi.forEach((t) => {
+          if (t.tipe === "Pemasukan") {
+            totalIn += t.nominal;
+            monthlyIn[t.bulanTahun] =
+              (monthlyIn[t.bulanTahun] || 0) + t.nominal;
+
+            if (t.kategori.toLowerCase().includes("penyewaan"))
+              rincianSewa += t.nominal;
+            else if (
+              t.kategori.toLowerCase().includes("penjualan") ||
+              t.kategori.toLowerCase().includes("kantin")
+            )
+              rincianKantin += t.nominal;
+            else rincianManual += t.nominal;
+          } else {
+            totalOut += t.nominal;
+            monthlyOut[t.bulanTahun] =
+              (monthlyOut[t.bulanTahun] || 0) + t.nominal;
+          }
+        });
+
+        const saldoAkhir = saldoAwal + totalIn - totalOut;
+
+        document.getElementById("dashTotalPemasukan").innerText =
+          formatRupiah(totalIn);
+        document.getElementById("dashTotalPengeluaran").innerText =
+          formatRupiah(totalOut);
+        document.getElementById("dashSaldoKas").innerText =
+          formatRupiah(saldoAkhir);
+        document.getElementById("dashSaldoAwalInfo").innerText =
+          `Termasuk Saldo Awal Kas: ${formatRupiah(saldoAwal)}`;
+
+        // Render Modal Rincian Pemasukan
+        document.getElementById("incomeBreakdownList").innerHTML = `
+        <div class="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+          <span class="text-sm text-slate-700 dark:text-slate-300">1. Pendapatan Penyewaan</span>
+          <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">${formatRupiah(rincianSewa)}</span>
+        </div>
+        <div class="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+          <span class="text-sm text-slate-700 dark:text-slate-300">2. Pendapatan Penjualan (Kantin)</span>
+          <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">${formatRupiah(rincianKantin)}</span>
+        </div>
+        <div class="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+          <span class="text-sm text-slate-700 dark:text-slate-300">3. Input Halaman Pemasukan</span>
+          <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400">${formatRupiah(rincianManual)}</span>
+        </div>
+        <div class="flex justify-between pt-2 border-t border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white">
+          <span>Total Keseluruhan</span>
+          <span class="text-emerald-600 dark:text-emerald-400">${formatRupiah(totalIn)}</span>
+        </div>
+      `;
+
+        updateTargetProgressUI();
+
+        const allMonthsSet = new Set([
+          ...Object.keys(monthlyIn),
+          ...Object.keys(monthlyOut),
+        ]);
+        const sortedMonths = Array.from(allMonthsSet).sort();
+
+        const labels = sortedMonths.map(formatBulanLabel);
+        const dataIn = sortedMonths.map((m) => monthlyIn[m] || 0);
+        const dataOut = sortedMonths.map((m) => monthlyOut[m] || 0);
+
+        renderBarCharts(labels, dataIn, dataOut);
+      }
+
+      function updateTargetProgressUI() {
+        const selectedYM = document.getElementById("targetMonthPicker").value;
+        const targetObj = STATE.target[selectedYM] || {
+          targetPemasukan: 0,
+          batasPengeluaran: 0,
+        };
+
+        document.getElementById("inputTargetPemasukan").value =
+          targetObj.targetPemasukan
+            ? formatNumberWithCommas(targetObj.targetPemasukan)
+            : "";
+        document.getElementById("inputBatasPengeluaran").value =
+          targetObj.batasPengeluaran
+            ? formatNumberWithCommas(targetObj.batasPengeluaran)
+            : "";
+
+        let realIn = 0;
+        let realOut = 0;
+        STATE.transaksi.forEach((t) => {
+          if (t.bulanTahun === selectedYM) {
+            if (t.tipe === "Pemasukan") realIn += t.nominal;
+            else realOut += t.nominal;
+          }
+        });
+
+        const pctIn =
+          targetObj.targetPemasukan > 0
+            ? Math.min(
+                100,
+                Math.round((realIn / targetObj.targetPemasukan) * 100),
+              )
+            : 0;
+        const pctOut =
+          targetObj.batasPengeluaran > 0
+            ? Math.min(
+                100,
+                Math.round((realOut / targetObj.batasPengeluaran) * 100),
+              )
+            : 0;
+
+        document.getElementById("targetIncomePercentText").innerText =
+          `${pctIn}% (${formatRupiah(realIn)} / ${formatRupiah(targetObj.targetPemasukan)})`;
+        document.getElementById("targetIncomeBar").style.width = `${pctIn}%`;
+
+        document.getElementById("targetExpensePercentText").innerText =
+          `${pctOut}% (${formatRupiah(realOut)} / ${formatRupiah(targetObj.batasPengeluaran)})`;
+        document.getElementById("targetExpenseBar").style.width = `${pctOut}%`;
+
+        const badge = document.getElementById("cashflowStatusBadge");
+        const statusText = document.getElementById("cashflowStatusText");
+
+        if (realOut > realIn && (realIn > 0 || realOut > 0)) {
+          badge.className =
+            "px-4 py-2.5 rounded-xl border flex items-center gap-3 bg-rose-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400";
+          statusText.innerText = "Defisit (Pengeluaran > Pemasukan)";
+        } else if (
+          targetObj.batasPengeluaran > 0 &&
+          realOut > targetObj.batasPengeluaran
+        ) {
+          badge.className =
+            "px-4 py-2.5 rounded-xl border flex items-center gap-3 bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400";
+          statusText.innerText = "Waspada (Melebihi Batas Pengeluaran)";
+        } else if (realIn === 0 && realOut === 0) {
+          badge.className =
+            "px-4 py-2.5 rounded-xl border flex items-center gap-3 bg-slate-500/10 border-slate-500/30 text-slate-600 dark:text-slate-400";
+          statusText.innerText = "Belum Ada Transaksi Bulan Ini";
+        } else {
+          badge.className =
+            "px-4 py-2.5 rounded-xl border flex items-center gap-3 bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400";
+          statusText.innerText = "Normal & Sehat";
+        }
+      }
+
+      async function saveMonthlyTarget() {
+        const bulanTahun = document.getElementById("targetMonthPicker").value;
+        const targetPemasukan = parseFormattedNumber(
+          document.getElementById("inputTargetPemasukan").value,
+        );
+        const batasPengeluaran = parseFormattedNumber(
+          document.getElementById("inputBatasPengeluaran").value,
+        );
+
+        await apiCall(
+          {
+            action: "simpanTarget",
+            bulanTahun,
+            targetPemasukan,
+            batasPengeluaran,
+          },
+          "Menyimpan target bulanan...",
+        );
+        await fetchAllData();
+      }
+
+      function renderBarCharts(labels, dataIn, dataOut) {
+        if (chartInInstance) chartInInstance.destroy();
+        if (chartOutInstance) chartOutInstance.destroy();
+
+        const isDark = document.documentElement.classList.contains("dark");
+        const gridColor = isDark ? "#1e293b" : "#e2e8f0";
+        const tickColor = isDark ? "#94a3b8" : "#64748b";
+
+        const commonOptions = {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: gridColor }, ticks: { color: tickColor } },
+            y: { grid: { color: gridColor }, ticks: { color: tickColor } },
+          },
+        };
+
+        chartInInstance = new Chart(document.getElementById("chartPemasukan"), {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Pemasukan",
+                data: dataIn,
+                backgroundColor: "#10b981",
+                borderRadius: 6,
+              },
+            ],
+          },
+          options: commonOptions,
+        });
+
+        chartOutInstance = new Chart(
+          document.getElementById("chartPengeluaran"),
+          {
+            type: "bar",
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: "Pengeluaran",
+                  data: dataOut,
+                  backgroundColor: "#f43f5e",
+                  borderRadius: 6,
+                },
+              ],
+            },
+            options: commonOptions,
+          },
+        );
+      }
+
+      function toggleIncomeModal() {
+        const el = document.getElementById("modalIncomeDetail");
+        el.classList.toggle("hidden");
+        el.classList.toggle("flex");
+      }
+
+      /* -----------------------------------------------------------------------
+       * 2. INPUT TRANSAKSI, KATEGORI & 10 HISTORI TERBARU
+       * ----------------------------------------------------------------------- */
+      function populateCategorySelects() {
+        const inSel = document.getElementById("inKategori");
+        const outSel = document.getElementById("outKategori");
+        const srcSel = document.getElementById("srcKatTarget");
+
+        inSel.innerHTML = "";
+        outSel.innerHTML = "";
+        srcSel.innerHTML = "";
+
+        STATE.kategori.forEach((k) => {
+          const opt = `<option value="${k.nama}" data-jenis="${k.jenisAkuntansi}">${k.nama} (${k.jenisAkuntansi})</option>`;
+          if (k.tipe === "Pemasukan") {
+            inSel.innerHTML += opt;
+            srcSel.innerHTML += `<option value="${k.nama}">${k.nama}</option>`;
+          } else {
+            outSel.innerHTML += opt;
+          }
+        });
+      }
+
+      async function submitTransaksi(e, tipe) {
+        e.preventDefault();
+        const prefix = tipe === "Pemasukan" ? "in" : "out";
+        const tanggal = document.getElementById(prefix + "Tanggal").value;
+        const selectEl = document.getElementById(prefix + "Kategori");
+        const kategori = selectEl.value;
+        const jenisAkuntansi =
+          selectEl.options[selectEl.selectedIndex]?.dataset?.jenis ||
+          "Operasional";
+        const nominal = parseFormattedNumber(
+          document.getElementById(prefix + "Nominal").value,
+        );
+        const keterangan = document.getElementById(prefix + "Keterangan").value;
+
+        if (nominal <= 0) {
+          alert("Nominal harus lebih besar dari 0");
+          return;
+        }
+
+        await apiCall(
+          {
+            action: "simpanTransaksi",
+            tipe,
+            tanggal,
+            kategori,
+            jenisAkuntansi,
+            nominal,
+            keterangan,
+          },
+          `Menyimpan ${tipe.toLowerCase()}...`,
+        );
+
+        document.getElementById(prefix + "Nominal").value = "";
+        document.getElementById(prefix + "Keterangan").value = "";
+        await fetchAllData();
+      }
+
+      function renderRecentHistory() {
+        const tbody = document.getElementById("recentHistoryTable");
+        const sorted = [...STATE.transaksi]
+          .sort((a, b) => b.tanggal.localeCompare(a.tanggal))
+          .slice(0, 10);
+
+        if (sorted.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-500">Belum ada data transaksi.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = sorted
+          .map((t) => {
+            const isIn = t.tipe === "Pemasukan";
+            return `
+          <tr class="hover:bg-slate-50 dark:hover:bg-slate-850/60">
+            <td class="py-3 px-3 text-slate-700 dark:text-slate-300 whitespace-nowrap">${t.tanggal}</td>
+            <td class="py-3 px-3">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold ${isIn ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "bg-rose-500/15 text-rose-600 dark:text-rose-400"}">
+                ${t.tipe}
+              </span>
+            </td>
+            <td class="py-3 px-3 text-slate-900 dark:text-white font-medium">${t.kategori}</td>
+            <td class="py-3 px-3 text-slate-500 dark:text-slate-400 text-xs">${t.keterangan}</td>
+            <td class="py-3 px-3 text-right font-bold ${isIn ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"} whitespace-nowrap">
+              ${isIn ? "+" : "-"} ${formatRupiah(t.nominal)}
+            </td>
+            <td class="py-3 px-3 text-center whitespace-nowrap">
+              <button onclick='openEditModal(${JSON.stringify(t)})' class="text-amber-500 hover:text-amber-400 p-1" title="Edit">
+                <i data-lucide="edit-2" class="w-4 h-4 inline"></i>
+              </button>
+              <button onclick="deleteTrx('${t.id}')" class="text-rose-500 hover:text-rose-400 p-1 ml-1" title="Hapus">
+                <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+          })
+          .join("");
+      }
+
+      function openKategoriModal(tipe) {
+        document.getElementById("newKatTipe").value = tipe;
+        document.getElementById("modalKatTitle").innerText =
+          `Tambah Kategori ${tipe}`;
+        document.getElementById("modalAddKategori").classList.remove("hidden");
+        document.getElementById("modalAddKategori").classList.add("flex");
+      }
+
+      function closeModal(id) {
+        document.getElementById(id).classList.add("hidden");
+        document.getElementById(id).classList.remove("flex");
+      }
+
+      async function submitNewKategori(e) {
+        e.preventDefault();
+        await apiCall(
+          {
+            action: "tambahKategori",
+            tipe: document.getElementById("newKatTipe").value,
+            nama: document.getElementById("newKatNama").value,
+            jenisAkuntansi: document.getElementById("newKatJenis").value,
+          },
+          "Menambahkan kategori...",
+        );
+        closeModal("modalAddKategori");
+        document.getElementById("newKatNama").value = "";
+        await fetchAllData();
+      }
+
+      function openEditModal(trx) {
+        document.getElementById("editTrxId").value = trx.id;
+        document.getElementById("editTrxTipe").value = trx.tipe;
+        document.getElementById("editTrxTanggal").value = trx.tanggal;
+        document.getElementById("editTrxNominal").value =
+          formatNumberWithCommas(trx.nominal);
+        document.getElementById("editTrxKeterangan").value = trx.keterangan;
+
+        const katSelect = document.getElementById("editTrxKategori");
+        katSelect.innerHTML = "";
+        STATE.kategori
+          .filter((k) => k.tipe === trx.tipe)
+          .forEach((k) => {
+            katSelect.innerHTML += `<option value="${k.nama}" data-jenis="${k.jenisAkuntansi}" ${k.nama === trx.kategori ? "selected" : ""}>${k.nama}</option>`;
+          });
+
+        document.getElementById("modalEditTrx").classList.remove("hidden");
+        document.getElementById("modalEditTrx").classList.add("flex");
+      }
+
+      async function submitEditTransaksi(e) {
+        e.preventDefault();
+        const katEl = document.getElementById("editTrxKategori");
+        const nominal = parseFormattedNumber(
+          document.getElementById("editTrxNominal").value,
+        );
+
+        if (nominal <= 0) {
+          alert("Nominal harus lebih besar dari 0");
+          return;
+        }
+
+        await apiCall(
+          {
+            action: "editTransaksi",
+            id: document.getElementById("editTrxId").value,
+            tipe: document.getElementById("editTrxTipe").value,
+            tanggal: document.getElementById("editTrxTanggal").value,
+            kategori: katEl.value,
+            jenisAkuntansi:
+              katEl.options[katEl.selectedIndex]?.dataset?.jenis ||
+              "Operasional",
+            nominal,
+            keterangan: document.getElementById("editTrxKeterangan").value,
+          },
+          "Menyimpan perubahan transaksi...",
+        );
+        closeModal("modalEditTrx");
+        await fetchAllData();
+      }
+
+      async function deleteTrx(id) {
+        // Menggunakan modal konfirmasi kustom menggantikan confirm() bawaan browser
+        showCustomConfirm(
+          "Konfirmasi Hapus Transaksi",
+          "Hapus transaksi ini? Penghapusan ini tidak dapat dikembalikan.",
+          async () => {
+            // Kode yang dijalankan jika pengguna menekan tombol "Ya, Hapus"
+            await apiCall(
+              { action: "hapusTransaksi", id },
+              "Menghapus transaksi...",
+            );
+            await fetchAllData();
+          },
+        );
+      }
+
+      async function updateSaldoAwal() {
+        const saldoAwal = parseFormattedNumber(
+          document.getElementById("inputSaldoAwal").value,
+        );
+        await apiCall(
+          { action: "simpanSaldoAwal", saldoAwal },
+          "Memperbarui saldo awal kas...",
+        );
+        await fetchAllData();
+      }
+
+      /* -----------------------------------------------------------------------
+       * 3. LAPORAN KEUANGAN (ARUS KAS & LABA RUGI) + EKSPOR EXCEL (.XLSX)
+       * ----------------------------------------------------------------------- */
+      function toggleReportPeriodInputs() {
+        const mode = document.getElementById("repModePeriode").value;
+        if (mode === "single") {
+          document
+            .getElementById("repSingleWrapper")
+            .classList.remove("hidden");
+          document.getElementById("repRangeWrapper").classList.add("hidden");
+        } else {
+          document.getElementById("repSingleWrapper").classList.add("hidden");
+          document.getElementById("repRangeWrapper").classList.remove("hidden");
+        }
+        renderReportPreview();
+      }
+
+      function getReportPeriodInfo() {
+        const mode = document.getElementById("repModePeriode").value;
+        if (mode === "single") {
+          const ym = document.getElementById("repSingleMonth").value;
+          const [y, m] = ym.split("-");
+          return {
+            startYM: ym,
+            endYM: ym,
+            labelBulan: NAMA_BULAN[parseInt(m, 10) - 1],
+            tahun: y,
+            displayPeriode: `${NAMA_BULAN[parseInt(m, 10) - 1]} ${y}`,
+          };
+        } else {
+          const startYM = document.getElementById("repStartMonth").value;
+          const endYM = document.getElementById("repEndMonth").value;
+          const [y1, m1] = startYM.split("-");
+          const [y2, m2] = endYM.split("-");
+          const b1 = NAMA_BULAN[parseInt(m1, 10) - 1];
+          const b2 = NAMA_BULAN[parseInt(m2, 10) - 1];
+          return {
+            startYM,
+            endYM,
+            labelBulan: `${b1} - ${b2}`,
+            tahun: y1 === y2 ? y1 : `${y1}-${y2}`,
+            displayPeriode: `${b1} ${y1} s/d ${b2} ${y2}`,
+          };
+        }
+      }
+
+      function renderReportPreview() {
+        const jenis = document.getElementById("repJenis").value;
+        const period = getReportPeriodInfo();
+        const usaha = STATE.settings.nama_usaha || "Barumba Sport & Cafe";
+        const alamat = STATE.settings.alamat_usaha || "";
+
+        const filtered = STATE.transaksi.filter(
+          (t) => t.bulanTahun >= period.startYM && t.bulanTahun <= period.endYM,
+        );
+
+        let html = `
+        <div class="border-b border-slate-200 dark:border-slate-800 pb-4 mb-6 text-center">
+          <h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-wide">${usaha}</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">${alamat}</p>
+          <p class="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-2 uppercase">${jenis}</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Periode: ${period.displayPeriode}</p>
+        </div>
+      `;
+
+        if (jenis === "Laba Rugi") {
+          const opsTrx = filtered.filter(
+            (t) => t.jenisAkuntansi === "Operasional",
+          );
+          const revMap = {};
+          const expMap = {};
+          let totalRev = 0;
+          let totalExp = 0;
+
+          opsTrx.forEach((t) => {
+            if (t.tipe === "Pemasukan") {
+              revMap[t.kategori] = (revMap[t.kategori] || 0) + t.nominal;
+              totalRev += t.nominal;
+            } else {
+              expMap[t.kategori] = (expMap[t.kategori] || 0) + t.nominal;
+              totalExp += t.nominal;
+            }
+          });
+
+          const labaBersih = totalRev - totalExp;
+
+          html += `
+          <div class="space-y-6 max-w-2xl mx-auto text-sm">
+            <div>
+              <h4 class="font-bold text-emerald-600 dark:text-emerald-400 uppercase text-xs tracking-wider mb-2">Pendapatan Usaha</h4>
+              <div class="space-y-1.5 border-b border-slate-200 dark:border-slate-800 pb-3">
+                ${
+                  Object.keys(revMap).length
+                    ? Object.entries(revMap)
+                        .map(
+                          ([k, v]) => `
+                  <div class="flex justify-between"><span class="text-slate-700 dark:text-slate-300">${k}</span><span class="text-slate-900 dark:text-white font-medium">${formatRupiah(v)}</span></div>
+                `,
+                        )
+                        .join("")
+                    : '<p class="text-slate-500 italic">Tidak ada pendapatan operasional pada periode ini.</p>'
+                }
+              </div>
+              <div class="flex justify-between font-bold text-slate-900 dark:text-white pt-2">
+                <span>Total Pendapatan Usaha</span>
+                <span class="text-emerald-600 dark:text-emerald-400">${formatRupiah(totalRev)}</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="font-bold text-rose-600 dark:text-rose-400 uppercase text-xs tracking-wider mb-2">Beban Operasional</h4>
+              <div class="space-y-1.5 border-b border-slate-200 dark:border-slate-800 pb-3">
+                ${
+                  Object.keys(expMap).length
+                    ? Object.entries(expMap)
+                        .map(
+                          ([k, v]) => `
+                  <div class="flex justify-between"><span class="text-slate-700 dark:text-slate-300">${k}</span><span class="text-slate-900 dark:text-white font-medium">${formatRupiah(v)}</span></div>
+                `,
+                        )
+                        .join("")
+                    : '<p class="text-slate-500 italic">Tidak ada beban operasional pada periode ini.</p>'
+                }
+              </div>
+              <div class="flex justify-between font-bold text-slate-900 dark:text-white pt-2">
+                <span>Total Beban Operasional</span>
+                <span class="text-rose-600 dark:text-rose-400">(${formatRupiah(totalExp)})</span>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex justify-between items-center text-base font-bold">
+              <span class="text-slate-900 dark:text-white">LABA / (RUGI) BERSIH</span>
+              <span class="${labaBersih >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}">${formatRupiah(labaBersih)}</span>
+            </div>
+          </div>
+        `;
+        } else {
+          const saldoAwal = Number(STATE.settings.saldo_awal_kas) || 0;
+          const inMap = {};
+          const outMap = {};
+          let totalIn = 0;
+          let totalOut = 0;
+
+          filtered.forEach((t) => {
+            if (t.tipe === "Pemasukan") {
+              inMap[t.kategori] = (inMap[t.kategori] || 0) + t.nominal;
+              totalIn += t.nominal;
+            } else {
+              outMap[t.kategori] = (outMap[t.kategori] || 0) + t.nominal;
+              totalOut += t.nominal;
+            }
+          });
+
+          const saldoAkhir = saldoAwal + totalIn - totalOut;
+
+          html += `
+          <div class="space-y-6 max-w-2xl mx-auto text-sm">
+            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex justify-between font-semibold">
+              <span class="text-slate-700 dark:text-slate-300">Saldo Awal Kas</span>
+              <span class="text-sky-600 dark:text-sky-400">${formatRupiah(saldoAwal)}</span>
+            </div>
+
+            <div>
+              <h4 class="font-bold text-emerald-600 dark:text-emerald-400 uppercase text-xs tracking-wider mb-2">Arus Kas Masuk</h4>
+              <div class="space-y-1.5 border-b border-slate-200 dark:border-slate-800 pb-3">
+                ${
+                  Object.keys(inMap).length
+                    ? Object.entries(inMap)
+                        .map(
+                          ([k, v]) => `
+                  <div class="flex justify-between"><span class="text-slate-700 dark:text-slate-300">${k}</span><span class="text-slate-900 dark:text-white font-medium">${formatRupiah(v)}</span></div>
+                `,
+                        )
+                        .join("")
+                    : '<p class="text-slate-500 italic">Tidak ada kas masuk.</p>'
+                }
+              </div>
+              <div class="flex justify-between font-bold text-slate-900 dark:text-white pt-2">
+                <span>Total Kas Masuk</span>
+                <span class="text-emerald-600 dark:text-emerald-400">${formatRupiah(totalIn)}</span>
+              </div>
+            </div>
+
+            <div>
+              <h4 class="font-bold text-rose-600 dark:text-rose-400 uppercase text-xs tracking-wider mb-2">Arus Kas Keluar</h4>
+              <div class="space-y-1.5 border-b border-slate-200 dark:border-slate-800 pb-3">
+                ${
+                  Object.keys(outMap).length
+                    ? Object.entries(outMap)
+                        .map(
+                          ([k, v]) => `
+                  <div class="flex justify-between"><span class="text-slate-700 dark:text-slate-300">${k}</span><span class="text-slate-900 dark:text-white font-medium">${formatRupiah(v)}</span></div>
+                `,
+                        )
+                        .join("")
+                    : '<p class="text-slate-500 italic">Tidak ada kas keluar.</p>'
+                }
+              </div>
+              <div class="flex justify-between font-bold text-slate-900 dark:text-white pt-2">
+                <span>Total Kas Keluar</span>
+                <span class="text-rose-600 dark:text-rose-400">(${formatRupiah(totalOut)})</span>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex justify-between items-center text-base font-bold">
+              <span class="text-slate-900 dark:text-white">SALDO AKHIR KAS</span>
+              <span class="text-sky-600 dark:text-sky-400">${formatRupiah(saldoAkhir)}</span>
+            </div>
+          </div>
+        `;
+        }
+
+        document.getElementById("reportPreviewContainer").innerHTML = html;
+      }
+
+      function downloadExcelReport() {
+        const jenis = document.getElementById("repJenis").value;
+        const period = getReportPeriodInfo();
+        const usaha = STATE.settings.nama_usaha || "Barumba Sport & Cafe";
+        const filtered = STATE.transaksi.filter(
+          (t) => t.bulanTahun >= period.startYM && t.bulanTahun <= period.endYM,
+        );
+
+        const wb = XLSX.utils.book_new();
+        const rows = [
+          [usaha.toUpperCase()],
+          [
+            `${jenis.toUpperCase()} — PERIODE ${period.displayPeriode.toUpperCase()}`,
+          ],
+          [],
+        ];
+
+        if (jenis === "Laba Rugi") {
+          const opsTrx = filtered.filter(
+            (t) => t.jenisAkuntansi === "Operasional",
+          );
+          const revMap = {};
+          const expMap = {};
+          opsTrx.forEach((t) => {
+            if (t.tipe === "Pemasukan")
+              revMap[t.kategori] = (revMap[t.kategori] || 0) + t.nominal;
+            else expMap[t.kategori] = (expMap[t.kategori] || 0) + t.nominal;
+          });
+
+          rows.push(["KATEGORI AKUN", "NOMINAL (RP)"]);
+          rows.push(["PENDAPATAN USAHA", ""]);
+          const startIn = rows.length + 1;
+          const revEntries = Object.entries(revMap);
+          if (revEntries.length === 0)
+            rows.push(["Tidak ada pendapatan operasional", 0]);
+          else revEntries.forEach(([k, v]) => rows.push([k, v]));
+          const endIn = rows.length;
+          const totalInRowIdx = rows.length + 1;
+          rows.push([
+            "TOTAL PENDAPATAN USAHA",
+            { f: `SUM(B${startIn}:B${endIn})` },
+          ]);
+
+          rows.push([]);
+          rows.push(["BEBAN OPERASIONAL", ""]);
+          const startOut = rows.length + 1;
+          const expEntries = Object.entries(expMap);
+          if (expEntries.length === 0)
+            rows.push(["Tidak ada beban operasional", 0]);
+          else expEntries.forEach(([k, v]) => rows.push([k, v]));
+          const endOut = rows.length;
+          const totalOutRowIdx = rows.length + 1;
+          rows.push([
+            "TOTAL BEBAN OPERASIONAL",
+            { f: `SUM(B${startOut}:B${endOut})` },
+          ]);
+
+          rows.push([]);
+          rows.push([
+            "LABA / (RUGI) BERSIH",
+            { f: `B${totalInRowIdx}-B${totalOutRowIdx}` },
+          ]);
+        } else {
+          const saldoAwal = Number(STATE.settings.saldo_awal_kas) || 0;
+          const inMap = {};
+          const outMap = {};
+          filtered.forEach((t) => {
+            if (t.tipe === "Pemasukan")
+              inMap[t.kategori] = (inMap[t.kategori] || 0) + t.nominal;
+            else outMap[t.kategori] = (outMap[t.kategori] || 0) + t.nominal;
+          });
+
+          rows.push(["KETERANGAN", "NOMINAL (RP)"]);
+          rows.push(["SALDO AWAL KAS", saldoAwal]);
+          rows.push([]);
+          rows.push(["ARUS KAS MASUK", ""]);
+          const startIn = rows.length + 1;
+          const inEntries = Object.entries(inMap);
+          if (inEntries.length === 0) rows.push(["Tidak ada kas masuk", 0]);
+          else inEntries.forEach(([k, v]) => rows.push([k, v]));
+          const endIn = rows.length;
+          const totalInRowIdx = rows.length + 1;
+          rows.push(["TOTAL KAS MASUK", { f: `SUM(B${startIn}:B${endIn})` }]);
+
+          rows.push([]);
+          rows.push(["ARUS KAS KELUAR", ""]);
+          const startOut = rows.length + 1;
+          const outEntries = Object.entries(outMap);
+          if (outEntries.length === 0) rows.push(["Tidak ada kas keluar", 0]);
+          else outEntries.forEach(([k, v]) => rows.push([k, v]));
+          const endOut = rows.length;
+          const totalOutRowIdx = rows.length + 1;
+          rows.push([
+            "TOTAL KAS KELUAR",
+            { f: `SUM(B${startOut}:B${endOut})` },
+          ]);
+
+          rows.push([]);
+          rows.push([
+            "SALDO AKHIR KAS",
+            { f: `B5+B${totalInRowIdx}-B${totalOutRowIdx}` },
+          ]);
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws["!cols"] = [{ wch: 42 }, { wch: 22 }];
+        XLSX.utils.book_append_sheet(wb, ws, jenis);
+
+        const fileName = `${jenis}, ${period.labelBulan}, ${period.tahun}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+      }
+
+      /* -----------------------------------------------------------------------
+       * 4. PENGATURAN SISTEM (SETTING), JADWAL CUSTOM & SUMBER EKSTERNAL
+       * ----------------------------------------------------------------------- */
+      function toggleCustomScheduleUI() {
+        const mode = document.getElementById("setModeJadwalRekap").value;
+        document.getElementById("customDayWrapper").classList.add("hidden");
+        document.getElementById("customDateWrapper").classList.add("hidden");
+
+        if (mode === "tanggal_bulanan") {
+          document
+            .getElementById("customDayWrapper")
+            .classList.remove("hidden");
+        } else if (mode === "tanggal_spesifik") {
+          document
+            .getElementById("customDateWrapper")
+            .classList.remove("hidden");
+        }
+      }
+
+      function renderSettingsUI() {
+        const s = STATE.settings;
+        document.getElementById("sidebarBusinessName").innerText =
+          s.nama_usaha || "Barumba Sport & Cafe";
+        document.getElementById("inputSaldoAwal").value = s.saldo_awal_kas
+          ? formatNumberWithCommas(s.saldo_awal_kas)
+          : "";
+        document.getElementById("setNamaUsaha").value = s.nama_usaha || "";
+        document.getElementById("setAlamatUsaha").value = s.alamat_usaha || "";
+        document.getElementById("setFolderBackup").value =
+          s.folder_backup_id || "";
+        document.getElementById("setFolderLaporan").value =
+          s.folder_laporan_id || "";
+        document.getElementById("setBulanMulai").value =
+          normalizeYM(s.bulan_pertama_mulai) || "";
+        document.getElementById("setAutoRekap").value =
+          s.auto_rekap_bulanan || "aktif";
+        document.getElementById("setAuto4Bulan").value =
+          s.auto_laporan_4bulan || "aktif";
+        document.getElementById("setStatusBooking").value =
+          s.status_booking || "OPEN";
+        document.getElementById("setBookingSpId").value =
+          s.booking_spreadsheet_id || "";
+
+        // Set jadwal custom
+        const modeJadwal = s.mode_jadwal_rekap || "akhir_bulan";
+        document.getElementById("setModeJadwalRekap").value = modeJadwal;
+        if (modeJadwal === "tanggal_bulanan") {
+          document.getElementById("setCustomDay").value =
+            s.nilai_jadwal_rekap || "";
+        } else if (modeJadwal === "tanggal_spesifik") {
+          document.getElementById("setCustomDate").value =
+            s.nilai_jadwal_rekap || "";
+        }
+        toggleCustomScheduleUI();
+
+        const tbody = document.getElementById("externalSourcesTable");
+        tbody.innerHTML = STATE.sumberEksternal
+          .map(
+            (src) => `
+        <tr>
+          <td class="py-2.5 px-3 font-medium text-slate-900 dark:text-white">${src.nama}</td>
+          <td class="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-xs">${src.spreadsheetId || "-"}</td>
+          <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300">${src.sheetName}</td>
+          <td class="py-2.5 px-3 text-slate-700 dark:text-slate-300">Kolom ke-${src.kolomNominal}</td>
+          <td class="py-2.5 px-3 text-emerald-600 dark:text-emerald-400 text-xs">${src.kategoriTarget}</td>
+          <td class="py-2.5 px-3 text-center">
+            <button onclick="deleteExternalSource('${src.id}')" class="text-rose-500 hover:text-rose-400">
+              <i data-lucide="trash-2" class="w-4 h-4 inline"></i>
+            </button>
+          </td>
+        </tr>
+      `,
+          )
+          .join("");
+      }
+
+      async function saveSystemSettings() {
+        const modeJadwal = document.getElementById("setModeJadwalRekap").value;
+        let nilaiJadwal = "";
+        if (modeJadwal === "tanggal_bulanan") {
+          nilaiJadwal = document.getElementById("setCustomDay").value;
+        } else if (modeJadwal === "tanggal_spesifik") {
+          nilaiJadwal = document.getElementById("setCustomDate").value;
+        }
+
+        const settingsPayload = {
+          nama_usaha: document.getElementById("setNamaUsaha").value,
+          alamat_usaha: document.getElementById("setAlamatUsaha").value,
+          folder_backup_id: document.getElementById("setFolderBackup").value,
+          folder_laporan_id: document.getElementById("setFolderLaporan").value,
+          bulan_pertama_mulai: document.getElementById("setBulanMulai").value,
+          auto_rekap_bulanan: document.getElementById("setAutoRekap").value,
+          mode_jadwal_rekap: modeJadwal,
+          nilai_jadwal_rekap: nilaiJadwal,
+          auto_laporan_4bulan: document.getElementById("setAuto4Bulan").value,
+          status_booking: document.getElementById("setStatusBooking").value,
+          booking_spreadsheet_id:
+            document.getElementById("setBookingSpId").value,
+        };
+        await apiCall(
+          { action: "simpanSettings", settings: settingsPayload },
+          "Menyimpan pengaturan...",
+        );
+        await fetchAllData();
+
+        // Menggunakan modal pop-up kustom menggantikan alert()
+        showCustomAlert(
+          "Pengaturan Disimpan",
+          "Konfigurasi sistem BarumbaSystem berhasil diperbarui.",
+        );
+      }
+
+      function openSourceModal() {
+        document.getElementById("modalAddSource").classList.remove("hidden");
+        document.getElementById("modalAddSource").classList.add("flex");
+      }
+
+      async function submitNewSource(e) {
+        e.preventDefault();
+        await apiCall(
+          {
+            action: "tambahSumberEksternal",
+            nama: document.getElementById("srcNama").value,
+            spreadsheetId: document.getElementById("srcSpId").value,
+            sheetName: document.getElementById("srcSheet").value,
+            kolomTanggal: 1,
+            kolomNominal: document.getElementById("srcColNom").value,
+            kategoriTarget: document.getElementById("srcKatTarget").value,
+          },
+          "Menambahkan sumber spreadsheet...",
+        );
+        closeModal("modalAddSource");
+        await fetchAllData();
+      }
+
+      async function deleteExternalSource(id) {
+        if (!confirm("Hapus sumber spreadsheet ini dari daftar rekap?")) return;
+        await apiCall(
+          { action: "hapusSumberEksternal", id },
+          "Menghapus sumber...",
+        );
+        await fetchAllData();
+      }
+      async function triggerHapusDataRekap() {
+        const targetBulan = document.getElementById("inputResetBulan").value;
+        if (!targetBulan) {
+          showCustomAlert(
+            "Perhatian",
+            "Silakan pilih periode bulan (YYYY-MM) terlebih dahulu.",
+          );
+          return;
+        }
+
+        // Menggunakan Modal Konfirmasi Kustom
+        showCustomConfirm(
+          "Konfirmasi Hapus Data",
+          `PERHATIAN: Apakah Anda yakin ingin menghapus seluruh data transaksi pada sheet untuk periode ${targetBulan}? Tindakan ini tidak dapat dibatalkan.`,
+          async () => {
+            // Kode yang dijalankan jika pengguna memilih "Ya, Hapus"
+            const res = await apiCall(
+              {
+                action: "hapusDataRekapByDate",
+                targetBulan: targetBulan,
+              },
+              "Menghapus data rekap bulanan...",
+            );
+
+            showCustomAlert("Berhasil", res.message);
+            await fetchAllData();
+          },
+        );
+      }
+      async function triggerManualRekap() {
+        if (
+          !confirm(
+            "Jalankan tes rekap bulanan sekarang? Data di spreadsheet asal akan di-backup ke Drive, diarsipkan, lalu dikosongkan.",
+          )
+        )
+          return;
+        const res = await apiCall(
+          { action: "jalankanRekapBulanan", isManualTest: true },
+          "Menjalankan rekap & backup GDrive...",
+        );
+        alert(res.message + "\n\n" + (res.detail ? res.detail.join("\n") : ""));
+        await fetchAllData();
+      }
+
+      async function triggerManual4Month() {
+        const res = await apiCall(
+          { action: "generateLaporan4Bulanan", isManualTest: true },
+          "Membuat laporan 4 bulanan ke GDrive...",
+        );
+        alert(res.message);
+      }
+
+      function showCustomAlert(title, message) {
+        document.getElementById("alertTitle").innerText = title;
+        document.getElementById("alertMessage").innerText = message;
+        const modal = document.getElementById("modalCustomAlert");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        lucide.createIcons();
+      }
+
+      function closeCustomAlert() {
+        const modal = document.getElementById("modalCustomAlert");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      }
+      function showCustomConfirm(title, message, onYes) {
+        document.getElementById("confirmTitle").innerText = title;
+        document.getElementById("confirmMessage").innerText = message;
+
+        const modal = document.getElementById("modalCustomConfirm");
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        lucide.createIcons();
+
+        const btnYa = document.getElementById("confirmBtnYa");
+        const btnBatal = document.getElementById("confirmBtnBatal");
+
+        // Bersihkan event listener sebelumnya agar tidak menumpuk
+        const newBtnYa = btnYa.cloneNode(true);
+        const newBtnBatal = btnBatal.cloneNode(true);
+        btnYa.parentNode.replaceChild(newBtnYa, btnYa);
+        btnBatal.parentNode.replaceChild(newBtnBatal, btnBatal);
+
+        // Jika tombol "Ya" diklik
+        document
+          .getElementById("confirmBtnYa")
+          .addEventListener("click", () => {
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+            if (typeof onYes === "function") onYes();
+          });
+
+        // Jika tombol "Batal" diklik
+        document
+          .getElementById("confirmBtnBatal")
+          .addEventListener("click", () => {
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+          });
+      }
+    </script>
+  </body>
+</html>
